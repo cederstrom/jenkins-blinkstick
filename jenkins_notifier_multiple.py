@@ -64,8 +64,7 @@ def get_queued_job(jobs):
 def running(n, stop_event):
     log("Start RUNNING")
     while(not stop_event.is_set()):
-        led.morph(name='blue')
-        led.morph(name='navy')
+        led.pulse(name='blue')
     log("End RUNNING")
 
 
