@@ -9,9 +9,9 @@ from blinkstick import blinkstick
 
 led = blinkstick.find_first()
 current_time = lambda: int(time.time())
-#led.set_mode(0)
+# led.set_mode(0)
 found_running_job = False
-thread_running_stop = thread_status_stop = thread_running = thread_status = None
+thread_status_stop = thread_status = None
 
 
 def get_server_instance():
@@ -26,9 +26,6 @@ def log(message):
 def signal_handler():
     log("Will exit")
     led.turn_off()
-    if thread_running and thread_running.isAlive():
-        thread_running_stop.set()
-        thread_running.join()
     if thread_status and thread_status.isAlive():
         thread_status_stop.set()
         thread_status.join()
@@ -61,32 +58,31 @@ def get_queued_job(jobs):
     return None
 
 
-def running(n, stop_event):
-    log("Start RUNNING")
-    while(not stop_event.is_set()):
-        led.pulse(name='blue')
-    log("End RUNNING")
+def running(name):
+    log("Started job %s" % name)
+    led.set_color(name='blue')
 
 
 def show_status(status, stop_event):
-    log("Start status: %s" % status)
+    # log("Start status: %s" % status)
     led.blink(name='blue', repeats=5, delay=300)
     led.turn_off()
     time.sleep(1.0)
     color = 'green' if status == 'SUCCESS' else 'red'
     led.set_color(name=color)
-    end_time = current_time() + 600
-    while(not stop_event.is_set() and current_time() < end_time):
+    # end_time = current_time() + 600
+    #    and current_time() < end_time
+    while not stop_event.is_set():
         time.sleep(10.0)
-    log("End status: %s" % status)
-    led.turn_off()
+    # log("End status: %s" % status)
+    # led.turn_off()
 
 
 def run_check(regex):
-    global found_running_job, thread_running, thread_running_stop, thread_status, thread_status_stop
-    log("run_check")
+    global found_running_job, thread_status, thread_status_stop
+    # log("run_check")
     jobs = get_jobs(regex)
-    #log("Got jobs: %s" % jobs)
+    # log("Got jobs: %s" % jobs)
     running_job = get_running_job(jobs)
     queued_job = get_queued_job(jobs)
 
@@ -96,23 +92,19 @@ def run_check(regex):
             thread_status.join()
 
     if running_job:
-        if not found_running_job or (found_running_job and found_running_job.name != running_job.name):
+        if (not found_running_job or (found_running_job and found_running_job.name != running_job.name)):
             found_running_job = running_job
             if thread_status and thread_status.isAlive():
                 thread_status_stop.set()
                 thread_status.join()
-            if not (thread_running and thread_running.isAlive()):
-                thread_running_stop = Event()
-                thread_running = Thread(target=running, args=(1, thread_running_stop))
-                thread_running.start()
+            running(running_job.name)
         time.sleep(3.0)
     elif found_running_job:
-        thread_running_stop.set()
         last_build = found_running_job.get_last_build()
-        found_running_job = False
         status = last_build.get_status()
-        log("Build number: %s, status: %s" % (last_build.get_number(), status))
-        thread_running.join()
+        log("Build %s #%s, status: %s" % (found_running_job.name,
+            last_build.get_number(), status))
+        found_running_job = False
 
         thread_status_stop = Event()
         thread_status = Thread(target=show_status, args=(status, thread_status_stop))
