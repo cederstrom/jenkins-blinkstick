@@ -15,7 +15,7 @@ thread_status_stop = thread_status = None
 
 
 def get_server_instance():
-    jenkins_url = 'http://jenkins.sfa.se'
+    jenkins_url = 'http://jenkins'
     return Jenkins(jenkins_url)
 
 
